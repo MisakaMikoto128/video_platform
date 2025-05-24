@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}视频浏览{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold">视频浏览</h1>
+        <button onclick="showUploadModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            上传视频
+        </button>
+    </div>
+
+    <!-- 视频网格 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {% for video in videos.items %}
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <a href="{{ url_for('video.watch_video', video_id=video.id) }}">
+                <div class="relative">
+                    <img src="{{ url_for('static', filename='thumbnails/' + video.thumbnail_path) if video.thumbnail_path else url_for('static', filename='images/default-thumbnail.jpg') }}"
+                         alt="{{ video.title }}"
+                         class="w-full h-48 object-cover">
+                    <div class="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
+                        {{ video.duration|format_duration }}
+                    </div>
+                </div>
+                <div class="p-4">
+                    <h3 class="font-semibold text-lg mb-2">{{ video.title }}</h3>
+                    <div class="flex justify-between text-sm text-gray-600">
+                        <span>{{ video.views }} 次观看</span>
+                        <span>{{ video.likes }} 点赞</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 分页 -->
+    <div class="mt-8 flex justify-center">
+        {% if videos.has_prev %}
+        <a href="{{ url_for('video.index', page=videos.prev_num) }}" class="mx-2 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+            上一页
+        </a>
+        {% endif %}
+        
+        <span class="mx-2 px-4 py-2">
+            第 {{ videos.page }} 页，共 {{ videos.pages }} 页
+        </span>
+        
+        {% if videos.has_next %}
+        <a href="{{ url_for('video.index', page=videos.next_num) }}" class="mx-2 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+            下一页
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 上传视频模态框 -->
+<div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-8 max-w-lg w-full">
+        <h2 class="text-2xl font-bold mb-4">上传视频</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="title">
+                    标题
+                </label>
+                <input type="text" id="title" name="title" required
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="description">
+                    描述
+                </label>
+                <textarea id="description" name="description"
+                          class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="tags">
+                    标签（用逗号分隔）
+                </label>
+                <input type="text" id="tags" name="tags"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="video">
+                    选择视频文件
+                </label>
+                <input type="file" id="video" name="video" accept="video/*" required
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            
+            <div class="flex justify-end">
+                <button type="button" onclick="hideUploadModal()"
+                        class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">
+                    取消
+                </button>
+                <button type="submit"
+                        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    上传
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showUploadModal() {
+    document.getElementById('uploadModal').classList.remove('hidden');
+}
+
+function hideUploadModal() {
+    document.getElementById('uploadModal').classList.add('hidden');
+}
+
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch('{{ url_for("video.upload_video") }}', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('上传成功！');
+            window.location.reload();
+        } else {
+            alert('上传失败：' + data.error);
+        }
+    } catch (error) {
+        alert('上传失败：' + error.message);
+    }
+});
+</script>
+{% endblock %} 

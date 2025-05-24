@@ -1,0 +1,25 @@
+*.pyc
+/logs/*
+
+*.db
+*.bin
+.vscode/
+*.log
+app/logs/*
+instance/*
+uploads/paid_downloads/*
+static/uploads/models/*
+venv/*
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+data/influxdb/*
+venv/*
+
+tmp/*
+video_platform/*
+migrations/*
+
+# Ignore the compiled Python files in the static directory
