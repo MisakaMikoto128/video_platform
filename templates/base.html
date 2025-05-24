@@ -23,10 +23,13 @@
                            class="border-transparent text-gray-500 hover:border-blue-500 hover:text-blue-600 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                             首页
                         </a>
-                        <a href="{{ url_for('video.search') }}" 
-                           class="border-transparent text-gray-500 hover:border-blue-500 hover:text-blue-600 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            搜索
-                        </a>
+                        <form action="{{ url_for('video.search_videos') }}" method="GET" class="flex items-center">
+                            <input type="text" name="query" placeholder="搜索视频..."
+                                   class="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <button type="submit" class="ml-2 text-gray-500 hover:text-blue-600">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
                 <div class="hidden sm:ml-6 sm:flex sm:items-center">

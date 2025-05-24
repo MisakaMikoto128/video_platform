@@ -23,3 +23,5 @@ video_platform/*
 migrations/*
 
 # Ignore the compiled Python files in the static directory
+static/videos/*.mp4
+static/thumbnails/*

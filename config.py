@@ -10,12 +10,12 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # 视频相关配置
-    VIDEO_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'videos')
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'videos')
+    THUMBNAIL_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'thumbnails')
     VIDEO_MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB
     VIDEO_ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'wmv'}
     
     # 缩略图配置
-    THUMBNAIL_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'thumbnails')
     THUMBNAIL_SIZE = (320, 180)  # 16:9 比例
     
     # 会话配置
@@ -27,7 +27,7 @@ class Config:
     # 确保上传目录存在
     @staticmethod
     def init_app(app):
-        os.makedirs(Config.VIDEO_UPLOAD_FOLDER, exist_ok=True)
+        os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
         os.makedirs(Config.THUMBNAIL_FOLDER, exist_ok=True)
 
 class DevelopmentConfig(Config):
