@@ -1,93 +1,111 @@
 {% extends "base.html" %}
 
-{% block title %}{{ video.title }}{% endblock %}
+{% block title %}{{ video.title }} - 视频平台{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- 视频播放区域 -->
+        <!-- 主视频区域 -->
         <div class="lg:col-span-2">
             <div class="bg-black rounded-lg overflow-hidden">
-                <video id="videoPlayer" class="w-full" controls autoplay>
-                    <source src="{{ url_for('static', filename='videos/' + video.file_path) }}" type="video/mp4">
-                    您的浏览器不支持视频播放。
+                <video id="videoPlayer" class="w-full" controls>
+                    <source src="{{ url_for('video.get_video', video_id=video.id) }}" type="video/mp4">
+                    您的浏览器不支持 HTML5 视频播放。
                 </video>
             </div>
-            
+
             <div class="mt-4">
-                <h1 class="text-2xl font-bold">{{ video.title }}</h1>
+                <h1 class="text-2xl font-bold text-gray-900">{{ video.title }}</h1>
                 <div class="flex items-center justify-between mt-2">
-                    <div class="flex items-center space-x-4">
-                        <span class="text-gray-600">{{ video.views }} 次观看</span>
-                        <span class="text-gray-600">{{ video.created_at.strftime('%Y-%m-%d') }}</span>
+                    <div class="flex items-center space-x-4 text-sm text-gray-600">
+                        <span class="flex items-center">
+                            <i class="fas fa-eye mr-1"></i>
+                            {{ video.views }} 次观看
+                        </span>
+                        <span class="flex items-center">
+                            <i class="fas fa-heart mr-1"></i>
+                            {{ video.likes }} 点赞
+                        </span>
+                        <span class="flex items-center">
+                            <i class="fas fa-calendar mr-1"></i>
+                            {{ video.created_at.strftime('%Y-%m-%d') }}
+                        </span>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <button id="likeButton" onclick="toggleLike()" class="flex items-center space-x-2">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-                            </svg>
+                    <div class="flex items-center space-x-2">
+                        <button id="likeButton" class="flex items-center px-4 py-2 rounded-md {% if is_liked %}bg-red-100 text-red-600{% else %}bg-gray-100 text-gray-600{% endif %} hover:bg-gray-200">
+                            <i class="fas fa-heart mr-2"></i>
                             <span id="likeCount">{{ video.likes }}</span>
                         </button>
                     </div>
                 </div>
-                
-                <div class="mt-4">
-                    <p class="text-gray-700">{{ video.description }}</p>
-                    <div class="mt-2 flex flex-wrap gap-2">
-                        {% for tag in video.tags.split(',') %}
-                        <a href="{{ url_for('video.search_videos', tag=tag.strip()) }}" 
-                           class="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-sm hover:bg-gray-300">
-                            {{ tag.strip() }}
-                        </a>
-                        {% endfor %}
-                    </div>
-                </div>
             </div>
-            
-            <!-- 评论区 -->
-            <div class="mt-8">
-                <h2 class="text-xl font-bold mb-4">评论</h2>
-                <div class="mb-4">
-                    <textarea id="commentInput" 
-                              class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              placeholder="写下你的评论..."></textarea>
-                    <button onclick="submitComment()" 
-                            class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        发表评论
-                    </button>
+
+            <div class="mt-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">评论 ({{ video.comments|length }})</h2>
                 </div>
-                
-                <div id="commentsList" class="space-y-4">
+
+                {% if current_user.is_authenticated %}
+                <form id="commentForm" class="mt-4">
+                    <div class="flex space-x-4">
+                        <textarea name="content" rows="2" required
+                                  class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  placeholder="添加评论..."></textarea>
+                        <button type="submit"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            发送
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+
+                <div id="commentsList" class="mt-6 space-y-4">
                     {% for comment in video.comments %}
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <div class="flex items-center mb-2">
-                            <span class="font-semibold">{{ comment.user.username }}</span>
-                            <span class="text-gray-500 text-sm ml-2">
-                                {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
-                            </span>
+                    <div class="flex space-x-4">
+                        <div class="flex-shrink-0">
+                            <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <i class="fas fa-user text-gray-500"></i>
+                            </div>
                         </div>
-                        <p class="text-gray-700">{{ comment.content }}</p>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-medium text-gray-900">{{ comment.user.username }}</h3>
+                                <p class="text-sm text-gray-500">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-700">{{ comment.content }}</p>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
-        
-        <!-- 推荐视频 -->
+
+        <!-- 相关视频 -->
         <div class="lg:col-span-1">
-            <h2 class="text-xl font-bold mb-4">推荐视频</h2>
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">相关视频</h2>
             <div class="space-y-4">
                 {% for related_video in related_videos %}
-                <a href="{{ url_for('video.watch_video', video_id=related_video.id) }}" 
-                   class="flex space-x-4 hover:bg-gray-50 p-2 rounded">
-                    <img src="{{ url_for('static', filename='thumbnails/' + related_video.thumbnail_path) if related_video.thumbnail_path else url_for('static', filename='images/default-thumbnail.jpg') }}"
-                         alt="{{ related_video.title }}"
-                         class="w-40 h-24 object-cover rounded">
-                    <div>
-                        <h3 class="font-semibold line-clamp-2">{{ related_video.title }}</h3>
-                        <div class="text-sm text-gray-600">
-                            <div>{{ related_video.views }} 次观看</div>
-                            <div>{{ related_video.created_at.strftime('%Y-%m-%d') }}</div>
+                <a href="{{ url_for('video.watch_video', video_id=related_video.id) }}" class="block">
+                    <div class="flex space-x-4">
+                        <div class="flex-shrink-0 w-40">
+                            <div class="relative pb-[56.25%]">
+                                <img src="{{ url_for('video.get_thumbnail', video_id=related_video.id) }}"
+                                     alt="{{ related_video.title }}"
+                                     class="absolute inset-0 w-full h-full object-cover rounded">
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-medium text-gray-900 line-clamp-2">{{ related_video.title }}</h3>
+                            <div class="mt-1 flex items-center text-xs text-gray-500">
+                                <span class="flex items-center mr-2">
+                                    <i class="fas fa-eye mr-1"></i>
+                                    {{ related_video.views }}
+                                </span>
+                                <span class="flex items-center">
+                                    <i class="fas fa-heart mr-1"></i>
+                                    {{ related_video.likes }}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </a>
@@ -100,79 +118,80 @@
 
 {% block scripts %}
 <script>
-let isLiked = false;
+document.getElementById('likeButton').addEventListener('click', async function() {
+    if (!{{ 'true' if current_user.is_authenticated else 'false' }}) {
+        window.location.href = "{{ url_for('auth.login') }}";
+        return;
+    }
 
-async function toggleLike() {
     try {
-        const response = await fetch('{{ url_for("video.like_video", video_id=video.id) }}', {
+        const response = await fetch("{{ url_for('video.like_video', video_id=video.id) }}", {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                user_id: '{{ current_user.id if current_user.is_authenticated else "" }}'
-            })
+                'Content-Type': 'application/json'
+            }
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            document.getElementById('likeCount').textContent = data.likes;
-            isLiked = data.action === 'liked';
-            updateLikeButton();
+            const likeCount = document.getElementById('likeCount');
+            likeCount.textContent = data.likes;
+            
+            if (data.is_liked) {
+                this.classList.add('bg-red-100', 'text-red-600');
+                this.classList.remove('bg-gray-100', 'text-gray-600');
+            } else {
+                this.classList.remove('bg-red-100', 'text-red-600');
+                this.classList.add('bg-gray-100', 'text-gray-600');
+            }
         }
     } catch (error) {
         console.error('Error:', error);
     }
-}
+});
 
-function updateLikeButton() {
-    const button = document.getElementById('likeButton');
-    if (isLiked) {
-        button.classList.add('text-red-500');
-    } else {
-        button.classList.remove('text-red-500');
-    }
-}
-
-async function submitComment() {
-    const content = document.getElementById('commentInput').value.trim();
-    if (!content) return;
+document.getElementById('commentForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const content = this.querySelector('textarea[name="content"]').value;
     
     try {
-        const response = await fetch('{{ url_for("video.add_comment", video_id=video.id) }}', {
+        const response = await fetch("{{ url_for('video.add_comment', video_id=video.id) }}", {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                user_id: '{{ current_user.id if current_user.is_authenticated else "" }}',
-                content: content
-            })
+            body: JSON.stringify({ content })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            // 添加新评论到列表
             const commentsList = document.getElementById('commentsList');
-            const commentHtml = `
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <div class="flex items-center mb-2">
-                        <span class="font-semibold">{{ current_user.username if current_user.is_authenticated else "游客" }}</span>
-                        <span class="text-gray-500 text-sm ml-2">刚刚</span>
+            const newComment = document.createElement('div');
+            newComment.className = 'flex space-x-4';
+            newComment.innerHTML = `
+                <div class="flex-shrink-0">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-user text-gray-500"></i>
                     </div>
-                    <p class="text-gray-700">${content}</p>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-medium text-gray-900">{{ current_user.username }}</h3>
+                        <p class="text-sm text-gray-500">刚刚</p>
+                    </div>
+                    <p class="mt-1 text-sm text-gray-700">${content}</p>
                 </div>
             `;
-            commentsList.insertAdjacentHTML('afterbegin', commentHtml);
+            commentsList.insertBefore(newComment, commentsList.firstChild);
             
-            // 清空输入框
-            document.getElementById('commentInput').value = '';
+            this.reset();
         }
     } catch (error) {
         console.error('Error:', error);
     }
-}
+});
 </script>
 {% endblock %} 
