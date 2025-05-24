@@ -38,36 +38,26 @@ def index():
 def upload_video():
     if request.method == 'POST':
         if 'video' not in request.files:
-            return jsonify({'error': '没有选择文件'}), 400
-        
+            return render_template('video/upload.html', error='没有选择文件')
         file = request.files['video']
         if file.filename == '':
-            return jsonify({'error': '没有选择文件'}), 400
-        
+            return render_template('video/upload.html', error='没有选择文件')
         if not allowed_file(file.filename):
-            return jsonify({'error': '不支持的文件格式'}), 400
-        
+            return render_template('video/upload.html', error='不支持的文件格式')
         try:
-            # 保存视频文件
             filename = secure_filename(file.filename)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             video_filename = f"{timestamp}_{filename}"
             video_path = os.path.join(current_app.config['UPLOAD_FOLDER'], video_filename)
             file.save(video_path)
-            
-            # 生成缩略图
             thumbnail_filename = f"{timestamp}_thumb.jpg"
             thumbnail_path = os.path.join(current_app.config['THUMBNAIL_FOLDER'], thumbnail_filename)
             if not generate_thumbnail(video_path, thumbnail_path):
                 os.remove(video_path)
-                return jsonify({'error': '生成缩略图失败'}), 500
-            
-            # 获取视频时长
+                return render_template('video/upload.html', error='生成缩略图失败')
             clip = VideoFileClip(video_path)
             duration = str(int(clip.duration))
             clip.close()
-            
-            # 创建视频记录
             video = Video(
                 title=request.form.get('title'),
                 description=request.form.get('description'),
@@ -77,16 +67,12 @@ def upload_video():
                 user_id=current_user.id,
                 tags=request.form.get('tags', '')
             )
-            
             db.session.add(video)
             db.session.commit()
-            
-            return jsonify({'message': '上传成功', 'video_id': video.id})
-            
+            return render_template('video/upload.html', message='上传成功')
         except Exception as e:
             current_app.logger.error(f"上传视频失败: {str(e)}")
-            return jsonify({'error': '上传失败'}), 500
-    
+            return render_template('video/upload.html', error='上传失败')
     return render_template('video/upload.html')
 
 @video_bp.route('/watch/<int:video_id>')
@@ -193,3 +179,22 @@ def get_thumbnail(video_id):
     video = Video.query.get_or_404(video_id)
     thumbnail_path = os.path.join(current_app.config['THUMBNAIL_FOLDER'], video.thumbnail_path)
     return send_file(thumbnail_path, mimetype='image/jpeg')
+
+@video_bp.route('/api/videos')
+def api_videos():
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    videos = Video.query.order_by(Video.created_at.desc()).paginate(page=page, per_page=per_page)
+    from flask import url_for
+    data = [{
+        'id': v.id,
+        'title': v.title,
+        'file_path': url_for('video.get_video', video_id=v.id),
+        'thumbnail': url_for('video.get_thumbnail', video_id=v.id),
+        'description': v.description or ''
+    } for v in videos.items]
+    return jsonify({'videos': data, 'has_next': videos.has_next})
+
+@video_bp.route('/swipe')
+def swipe():
+    return render_template('video/swipe.html')
