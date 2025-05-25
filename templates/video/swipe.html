@@ -5,24 +5,326 @@
     <title>刷视频</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; background: #000; }
-        #video-list { height: 100vh; width: 100vw; overflow: hidden; position: relative; }
-        .video-container { height: 100vh; width: 100vw; display: flex; flex-direction: column; align-items: center; justify-content: center; position: absolute; top: 0; left: 0; transition: transform 0.4s; }
-        video { max-height: 80vh; max-width: 100vw; background: #000; }
-        .title { color: #fff; font-size: 1.2em; position: absolute; top: 20px; left: 20px; z-index: 2; }
-        .desc { color: #fff; font-size: 1em; position: absolute; bottom: 80px; left: 20px; z-index: 2; max-width: 80vw; }
-        .action-buttons { position: absolute; right: 20px; bottom: 100px; display: flex; flex-direction: column; gap: 20px; }
-        .action-button { background: none; border: none; color: white; font-size: 24px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
-        .action-button i { font-size: 32px; margin-bottom: 5px; }
-        .action-button span { font-size: 14px; }
-        .like-button.active { color: #ff2d55; }
-        .loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; }
+        /* 全局样式 */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden; /* 防止页面整体滚动 */
+            font-family: sans-serif;
+            color: #fff;
+        }
+
+        #video-list {
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-container {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1); /* 更平滑的过渡 */
+            background: #000;
+            box-sizing: border-box;
+            padding-bottom: 60px; /* 给底部留出空间 */
+        }
+
+        video {
+            max-height: 100%; /* 填充容器高度 */
+            max-width: 100%; /* 填充容器宽度 */
+            object-fit: contain; /* 保持视频比例 */
+            background: #000;
+            cursor: pointer;
+        }
+
+        /* 视频信息和操作区域 */
+        .video-info {
+            position: absolute;
+            bottom: 60px; /* 调整位置 */
+            left: 20px;
+            right: 100px; /* 给右侧操作按钮留出空间 */
+            z-index: 2;
+            color: #fff;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .title {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+            font-weight: bold;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+        }
+
+        .desc {
+            font-size: 1em;
+            opacity: 0.9;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .action-buttons {
+            position: absolute;
+            right: 20px;
+            bottom: 80px; /* 调整位置 */
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* 调整间距 */
+            z-index: 2;
+        }
+
+        .action-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px; /* 调整字体大小 */
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.2s ease-in-out;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .action-button:active {
+            transform: scale(0.9);
+        }
+
+        .action-button i {
+            font-size: 28px; /* 调整图标大小 */
+            margin-bottom: 3px; /* 调整图标和文字间距 */
+        }
+
+        .action-button span {
+            font-size: 12px; /* 调整文字大小 */
+        }
+
+        /* 点赞按钮特定样式 */
+        .like-button .fa-heart {
+             transition: color 0.2s ease-in-out;
+        }
+
+        .like-button.active .fa-heart {
+            color: #ff2d55; /* 抖音点赞红 */
+        }
+
+        .like-button span {
+             min-width: 30px; /* 确保点赞数有足够的空间 */
+             text-align: center;
+        }
+
+
+        /* 播放/暂停图标覆盖层 */
+        .play-pause-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.3); /* 半透明背景 */
+            z-index: 1; /* 在视频信息和操作按钮下方 */
+            opacity: 0;
+            pointer-events: none; /* 不影响视频点击 */
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        .play-pause-overlay i {
+            font-size: 80px; /* 图标大小 */
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .play-pause-overlay.visible {
+            opacity: 1;
+        }
+
+        /* 评论弹窗样式 */
+        .comment-modal {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%; /* 弹窗高度 */
+            background-color: #fff;
+            color: #333;
+            z-index: 1000;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-in-out;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .comment-modal.visible {
+            transform: translateY(0);
+        }
+
+        .comment-header {
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            position: relative;
+        }
+
+        .comment-header .close-btn {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .comment-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .comment-item {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .comment-item .username {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .comment-item .content {
+            margin-bottom: 5px;
+        }
+
+        .comment-item .created-at {
+            font-size: 0.8em;
+            color: #999;
+        }
+
+        .comment-input-area {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+        }
+
+        .comment-input-area input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            margin-right: 10px;
+        }
+
+        .comment-input-area button {
+            padding: 10px 20px;
+            background-color: #ff2d55;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        /* 分享弹窗样式 */
+        .share-modal {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #fff;
+            color: #333;
+            z-index: 1000;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-in-out;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .share-modal.visible {
+            transform: translateY(0);
+        }
+
+        .share-modal h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .share-options button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            background-color: #eee;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+            z-index: 1001; /* 确保在弹窗之上 */
+        }
+
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
     <div id="video-list"></div>
     <div id="loading" class="loading" style="display: none;">加载中...</div>
+
+    <!-- 评论弹窗 -->
+    <div id="comment-modal" class="comment-modal">
+        <div class="comment-header">
+            评论 <span id="comment-count">(0)</span>
+            <span class="close-btn" onclick="closeCommentModal()">&times;</span>
+        </div>
+        <div id="comment-list" class="comment-list">
+            <!-- 评论项将在这里加载 -->
+        </div>
+        <div class="comment-input-area">
+            <input type="text" id="comment-input" placeholder="发表你的评论...">
+            <button onclick="postComment()">发送</button>
+        </div>
+    </div>
+
+    <!-- 分享弹窗 -->
+    <div id="share-modal" class="share-modal">
+        <h3>分享视频</h3>
+        <div class="share-options">
+            <button onclick="copyVideoLink()">复制链接</button>
+            <button onclick="downloadVideo()">下载视频</button>
+        </div>
+         <button style="margin-top: 20px; background-color: #ccc;" onclick="closeShareModal()">取消</button>
+    </div>
+
+
     <script>
         let page = 1;
         let videos = [];
@@ -31,14 +333,24 @@
         let touchStartY = 0;
         let touchStartX = 0;
         let isScrolling = false;
-        let currentVideo = null;
+        let currentVideoElement = null; // 存储当前视频的video元素引用
+        let isVideoPaused = false; // 标记视频是否暂停
+
+        const videoListElement = document.getElementById('video-list');
+        const loadingElement = document.getElementById('loading');
+        const commentModal = document.getElementById('comment-modal');
+        const commentListElement = document.getElementById('comment-list');
+        const commentInputElement = document.getElementById('comment-input');
+        const commentCountElement = document.getElementById('comment-count');
+        const shareModal = document.getElementById('share-modal');
+
 
         function showLoading() {
-            document.getElementById('loading').style.display = 'block';
+            loadingElement.style.display = 'block';
         }
 
         function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
+            loadingElement.style.display = 'none';
         }
 
         function loadVideos(cb) {
@@ -46,10 +358,21 @@
             loading = true;
             showLoading();
             fetch(`/api/videos?page=${page}`)
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Network response was not ok ' + res.statusText);
+                    }
+                    return res.json();
+                })
                 .then(data => {
-                    videos = videos.concat(data.videos);
-                    if (cb) cb();
+                    if (data.videos && data.videos.length > 0) {
+                         videos = videos.concat(data.videos);
+                         if (cb) cb();
+                         page++; // 加载成功后才递增页码
+                    } else {
+                        console.log('没有更多视频了');
+                        // 可以显示一个提示，例如"没有更多视频"
+                    }
                     loading = false;
                     hideLoading();
                 })
@@ -57,117 +380,410 @@
                     console.error('加载视频失败:', error);
                     loading = false;
                     hideLoading();
+                    // 显示错误提示
                 });
         }
 
-        function toggleLike(videoId) {
-            const likeButton = document.querySelector('.like-button');
-            fetch(`/api/videos/${videoId}/like`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                likeButton.classList.toggle('active');
-            })
-            .catch(error => {
-                console.error('点赞失败:', error);
-            });
-        }
+        function toggleLike(videoId, buttonElement) {
+             fetch(`/api/videos/${videoId}/like`, {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json'
+                 }
+             })
+             .then(res => res.json())
+             .then(data => {
+                 if (data.is_liked) {
+                     buttonElement.classList.add('active');
+                 } else {
+                     buttonElement.classList.remove('active');
+                 }
+                 // 更新点赞数量显示
+                 const likeCountSpan = buttonElement.querySelector('span');
+                 if (likeCountSpan) {
+                     likeCountSpan.textContent = data.likes;
+                 }
+             })
+             .catch(error => {
+                 console.error('点赞失败:', error);
+                 // 显示错误提示
+             });
+         }
 
         function showVideo(idx) {
             if (idx < 0 || idx >= videos.length) return;
-            current = idx;
-            const v = videos[idx];
-            
-            // 停止当前视频播放
-            if (currentVideo) {
-                currentVideo.pause();
+
+            // 停止并移除之前的视频
+            if (currentVideoElement) {
+                 currentVideoElement.pause();
+                 const previousContainer = currentVideoElement.closest('.video-container');
+                 if (previousContainer) {
+                     previousContainer.remove();
+                 }
             }
 
-            document.getElementById('video-list').innerHTML = `
-                <div class="video-container">
+            current = idx;
+            const v = videos[idx];
+
+            const videoContainer = document.createElement('div');
+            videoContainer.classList.add('video-container');
+            // 添加一个属性来标识当前视频，方便移除旧的
+            videoContainer.dataset.videoId = v.id;
+
+            videoContainer.innerHTML = `
+                <div class="play-pause-overlay">
+                    <i class="fas fa-play"></i>
+                </div>
+                <video src="${v.file_path}" loop playsinline webkit-playsinline x5-playsinline></video>
+                <div class="video-info">
                     <div class="title">${v.title}</div>
-                    <video src="${v.file_path}" controls autoplay loop></video>
                     <div class="desc">${v.description || ''}</div>
-                    <div class="action-buttons">
-                        <button class="action-button like-button" onclick="toggleLike('${v.id}')">
-                            <i class="fas fa-heart"></i>
-                            <span>点赞</span>
-                        </button>
-                        <button class="action-button">
-                            <i class="fas fa-comment"></i>
-                            <span>评论</span>
-                        </button>
-                        <button class="action-button">
-                            <i class="fas fa-share"></i>
-                            <span>分享</span>
-                        </button>
-                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="action-button like-button" data-video-id="${v.id}">
+                        <i class="fas fa-heart"></i>
+                        <span>${v.likes || 0}</span> <!-- 显示点赞数 -->
+                    </button>
+                    <button class="action-button comment-button" data-video-id="${v.id}">
+                        <i class="fas fa-comment"></i>
+                        <span>${v.comment_count || 0}</span> <!-- 如果有评论数则显示 -->
+                    </button>
+                    <button class="action-button share-button" data-video-id="${v.id}">
+                        <i class="fas fa-share"></i>
+                        <span>分享</span>
+                    </button>
                 </div>
             `;
 
-            // 保存当前视频元素引用
-            currentVideo = document.querySelector('video');
+            videoListElement.appendChild(videoContainer);
+
+            // 获取新创建的视频元素和点赞按钮
+            currentVideoElement = videoContainer.querySelector('video');
+            const likeButton = videoContainer.querySelector('.like-button');
+            const commentButton = videoContainer.querySelector('.comment-button');
+            const shareButton = videoContainer.querySelector('.share-button');
+            const playPauseOverlay = videoContainer.querySelector('.play-pause-overlay');
+
+
+            // 添加点赞事件监听
+            likeButton.addEventListener('click', () => toggleLike(v.id, likeButton));
+
+            // 添加评论事件监听
+            commentButton.addEventListener('click', () => openCommentModal(v.id));
+
+            // 添加分享事件监听
+            shareButton.addEventListener('click', () => openShareModal(v.id, v.file_path));
+
+
+            // 检查点赞状态（假设API返回的数据中包含用户是否已点赞的信息，或者单独调用API检查）
+            // 为了简化，这里假设需要调用API检查
+             checkLikeStatus(v.id, likeButton);
+
+
+            // 视频点击播放/暂停
+            currentVideoElement.addEventListener('click', () => {
+                if (currentVideoElement.paused) {
+                    currentVideoElement.play();
+                    playPauseOverlay.classList.remove('visible');
+                    isVideoPaused = false;
+                } else {
+                    currentVideoElement.pause();
+                    playPauseOverlay.classList.add('visible');
+                    isVideoPaused = true;
+                }
+            });
+
+             // 视频播放和暂停事件，用于同步暂停图标
+             currentVideoElement.addEventListener('play', () => {
+                 playPauseOverlay.classList.remove('visible');
+                 isVideoPaused = false;
+             });
+
+             currentVideoElement.addEventListener('pause', () => {
+                 playPauseOverlay.classList.add('visible');
+                 isVideoPaused = true;
+             });
+
+             // 自动播放当前视频（需要用户手势后才能自动播放）
+             // 在移动端，通常需要在touch事件后触发play()
+            // currentVideoElement.play().catch(error => console.log('Autoplay prevented:', error)); // 尝试自动播放
         }
 
-        // 触摸事件处理
+        // 检查用户是否已点赞某个视频
+         function checkLikeStatus(videoId, buttonElement) {
+             // 假设有一个API endpoint来检查点赞状态，或者在加载视频列表时就返回这个信息
+             // 如果在videos数据中已经包含了is_liked字段，则不需要单独调用此函数
+             // fetch(`/api/videos/${videoId}/is_liked`) // 示例
+             //     .then(res => res.json())
+             //     .then(data => {
+             //         if (data.is_liked) {
+             //             buttonElement.classList.add('active');
+             //         }
+             //     });
+
+             // 临时方案：如果点赞数大于0且用户已登录（这里无法判断），假设已点赞
+             // 更好的方式是在后端接口中直接返回每个视频的is_liked状态
+             // if (parseInt(buttonElement.querySelector('span').textContent) > 0) {
+             //      buttonElement.classList.add('active');
+             // }
+         }
+
+
+        // 打开评论弹窗
+        function openCommentModal(videoId) {
+            commentModal.classList.add('visible');
+            // 加载评论
+            loadComments(videoId);
+        }
+
+        // 关闭评论弹窗
+        function closeCommentModal() {
+            commentModal.classList.remove('visible');
+            // 清空评论列表
+            commentListElement.innerHTML = '';
+            commentInputElement.value = '';
+        }
+
+        // 加载评论
+        function loadComments(videoId) {
+            fetch(`/api/videos/${videoId}/comments`)
+                .then(res => res.json())
+                .then(data => {
+                    commentListElement.innerHTML = ''; // 清空现有评论
+                    commentCountElement.textContent = `(${data.comments.length})`;
+                    data.comments.forEach(comment => {
+                        const commentItem = document.createElement('div');
+                        commentItem.classList.add('comment-item');
+                        commentItem.innerHTML = `
+                            <div class="username">${comment.username}</div>
+                            <div class="content">${comment.content}</div>
+                            <div class="created-at">${comment.created_at}</div>
+                        `;
+                        commentListElement.appendChild(commentItem);
+                    });
+                })
+                .catch(error => {
+                    console.error('加载评论失败:', error);
+                    // 显示错误提示
+                });
+        }
+
+        // 发表评论
+        function postComment() {
+            const videoId = videos[current].id;
+            const content = commentInputElement.value.trim();
+
+            if (!content) {
+                alert('评论内容不能为空');
+                return;
+            }
+
+            fetch(`/comment/${videoId}`, { // 注意：这里是 POST /comment/<video_id>
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: content })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.message) {
+                    console.log(data.message);
+                    commentInputElement.value = ''; // 清空输入框
+                    // 重新加载评论列表以显示新评论
+                    loadComments(videoId);
+                    // TODO: 更新视频的评论数显示
+                } else if (data.error) {
+                     alert(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('发表评论失败:', error);
+                // 显示错误提示
+            });
+        }
+
+         // 打开分享弹窗
+         function openShareModal(videoId, filePath) {
+             shareModal.classList.add('visible');
+             // 将视频链接和文件路径存储起来，供分享按钮使用
+             shareModal.dataset.videoLink = window.location.origin + videos[current].file_path; // 使用完整的视频URL
+             shareModal.dataset.downloadLink = window.location.origin + videos[current].file_path; // 下载链接同视频链接
+         }
+
+         // 关闭分享弹窗
+         function closeShareModal() {
+             shareModal.classList.remove('visible');
+         }
+
+         // 复制视频链接
+         function copyVideoLink() {
+             const videoLink = shareModal.dataset.videoLink;
+             navigator.clipboard.writeText(videoLink).then(() => {
+                 alert('视频链接已复制到剪贴板');
+                 closeShareModal();
+             }).catch(err => {
+                 console.error('复制链接失败:', err);
+                 alert('复制链接失败');
+             });
+         }
+
+         // 下载视频
+         function downloadVideo() {
+             const downloadLink = shareModal.dataset.downloadLink;
+             // 创建一个临时的a标签来触发下载
+             const a = document.createElement('a');
+             a.href = downloadLink;
+             a.download = videos[current].title + '.mp4'; // 设置下载文件名
+             document.body.appendChild(a);
+             a.click();
+             document.body.removeChild(a);
+             closeShareModal();
+         }
+
+
+        // 触摸事件处理 (优化)
         document.addEventListener('touchstart', e => {
+            if (commentModal.classList.contains('visible') || shareModal.classList.contains('visible')) {
+                 // 如果评论或分享弹窗打开，阻止背景滑动
+                 return;
+            }
             touchStartY = e.touches[0].clientY;
             touchStartX = e.touches[0].clientX;
-            isScrolling = false;
-        });
+            isScrolling = false; // 重置标志
+        }, { passive: false });
 
         document.addEventListener('touchmove', e => {
+             if (commentModal.classList.contains('visible') || shareModal.classList.contains('visible')) {
+                 // 如果评论或分享弹窗打开，允许其内部滚动但不影响背景
+                 return;
+             }
             const touchY = e.touches[0].clientY;
             const touchX = e.touches[0].clientX;
             const deltaY = touchY - touchStartY;
             const deltaX = touchX - touchStartX;
-            
-            // 判断是垂直滑动还是水平滑动
-            if (Math.abs(deltaY) > Math.abs(deltaX)) {
+
+            // 检查是否是垂直滑动
+            if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) { // 添加阈值，避免误触
                 isScrolling = true;
-                e.preventDefault(); // 防止页面滚动
+                e.preventDefault(); // 阻止默认的页面滚动行为
+                 // 根据滑动方向移动当前视频容器
+                const container = videoListElement.querySelector('.video-container');
+                if (container) {
+                     container.style.transform = `translateY(${deltaY}px)`;
+                }
+            } else {
+                isScrolling = false; // 如果是水平滑动或轻微移动，不认为是垂直切换
             }
-        }, { passive: false });
+        }, { passive: false }); // 使用 passive: false 允许 preventDefault
 
         document.addEventListener('touchend', e => {
-            if (isScrolling) return;
-            
+            if (commentModal.classList.contains('visible') || shareModal.classList.contains('visible')) {
+                return;
+            }
+            if (!isScrolling) {
+                // 如果不是垂直滑动，恢复容器位置
+                 const container = videoListElement.querySelector('.video-container');
+                 if (container) {
+                      container.style.transform = 'translateY(0)';
+                 }
+                return; // 如果不是垂直滑动，不执行切换逻辑
+            }
+
             const touchEndY = e.changedTouches[0].clientY;
             const deltaY = touchEndY - touchStartY;
-            
-            if (Math.abs(deltaY) > 50) {
+            const container = videoListElement.querySelector('.video-container');
+
+
+            if (Math.abs(deltaY) > 100) { // 设置一个更大的滑动距离阈值来触发切换
                 if (deltaY > 0 && current > 0) {
-                    showVideo(current - 1); // 下滑
+                    // 下滑切换到上一个视频
+                    if (container) container.style.transform = 'translateY(100vh)'; // 滑出到下方
+                     setTimeout(() => showVideo(current - 1), 400); // 动画完成后切换视频
                 } else if (deltaY < 0) {
+                    // 上滑切换到下一个视频
                     if (current < videos.length - 1) {
-                        showVideo(current + 1); // 上滑
+                        if (container) container.style.transform = 'translateY(-100vh)'; // 滑出到上方
+                         setTimeout(() => showVideo(current + 1), 400); // 动画完成后切换视频
                     } else {
-                        page++;
-                        loadVideos(() => showVideo(current + 1));
+                         // 如果是最后一个视频，尝试加载更多
+                        if (container) container.style.transform = 'translateY(-100vh)'; // 滑出到上方
+                        loadVideos(() => {
+                             // 如果加载到新视频，则切换
+                             if (videos.length > current + 1) {
+                                  setTimeout(() => showVideo(current + 1), 400);
+                             } else {
+                                 // 没加载到新视频，恢复容器位置
+                                  if (container) container.style.transform = 'translateY(0)';
+                                  console.log('没有更多视频了');
+                             }
+                        });
                     }
                 }
+            } else {
+                // 滑动距离不足，恢复容器位置
+                if (container) container.style.transform = 'translateY(0)';
             }
+             isScrolling = false; // 重置滑动标志
         });
+
 
         // 键盘上下切换
         document.addEventListener('keydown', e => {
+             // 如果评论或分享弹窗打开，阻止键盘事件影响背景
+             if (commentModal.classList.contains('visible') || shareModal.classList.contains('visible')) {
+                 return;
+             }
             if (e.key === 'ArrowUp') {
-                if (current > 0) showVideo(current - 1);
+                if (current > 0) {
+                     const container = videoListElement.querySelector('.video-container');
+                      if (container) container.style.transform = 'translateY(100vh)';
+                     setTimeout(() => showVideo(current - 1), 400);
+                 }
             } else if (e.key === 'ArrowDown') {
-                if (current < videos.length - 1) showVideo(current + 1);
+                if (current < videos.length - 1) {
+                     const container = videoListElement.querySelector('.video-container');
+                      if (container) container.style.transform = 'translateY(-100vh)';
+                    setTimeout(() => showVideo(current + 1), 400);
+                }
                 else {
-                    page++;
-                    loadVideos(() => showVideo(current + 1));
+                     // 如果是最后一个视频，尝试加载更多
+                    const container = videoListElement.querySelector('.video-container');
+                     if (container) container.style.transform = 'translateY(-100vh)';
+                     loadVideos(() => {
+                          if (videos.length > current + 1) {
+                                setTimeout(() => showVideo(current + 1), 400);
+                          } else {
+                               // 没加载到新视频，恢复容器位置
+                                if (container) container.style.transform = 'translateY(0)';
+                                console.log('没有更多视频了');
+                          }
+                     });
                 }
             }
         });
 
-        // 首次加载
+         // 初始加载视频
         loadVideos(() => showVideo(0));
+
+        // 监听视频列表元素的click事件，处理播放/暂停（备用方案，主要通过点击video元素实现）
+        // videoListElement.addEventListener('click', (e) => {
+        //      if (e.target.tagName === 'VIDEO') {
+        //          const video = e.target;
+        //          const playPauseOverlay = video.previousElementSibling; // 获取播放/暂停覆盖层
+        //          if (video.paused) {
+        //              video.play();
+        //              if (playPauseOverlay) playPauseOverlay.classList.remove('visible');
+        //              isVideoPaused = false;
+        //          } else {
+        //              video.pause();
+        //               if (playPauseOverlay) playPauseOverlay.classList.add('visible');
+        //               isVideoPaused = true;
+        //          }
+        //      }
+        // });
+
+
     </script>
 </body>
 </html> 

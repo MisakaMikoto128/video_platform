@@ -198,3 +198,14 @@ def api_videos():
 @video_bp.route('/swipe')
 def swipe():
     return render_template('video/swipe.html')
+
+@video_bp.route('/api/videos/<int:video_id>/comments', methods=['GET'])
+def get_comments(video_id):
+    video = Video.query.get_or_404(video_id)
+    comments = VideoComment.query.filter_by(video_id=video_id).order_by(VideoComment.created_at.asc()).all()
+    comments_data = [{
+        'content': comment.content,
+        'username': comment.user.username, # 假设Comment模型关联了User模型
+        'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M')
+    } for comment in comments]
+    return jsonify({'comments': comments_data})
