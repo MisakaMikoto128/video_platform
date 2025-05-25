@@ -16,11 +16,13 @@
         .action-button i { font-size: 32px; margin-bottom: 5px; }
         .action-button span { font-size: 14px; }
         .like-button.active { color: #ff2d55; }
+        .loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
     <div id="video-list"></div>
+    <div id="loading" class="loading" style="display: none;">加载中...</div>
     <script>
         let page = 1;
         let videos = [];
@@ -29,28 +31,49 @@
         let touchStartY = 0;
         let touchStartX = 0;
         let isScrolling = false;
+        let currentVideo = null;
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
 
         function loadVideos(cb) {
             if (loading) return;
             loading = true;
+            showLoading();
             fetch(`/api/videos?page=${page}`)
                 .then(res => res.json())
                 .then(data => {
                     videos = videos.concat(data.videos);
                     if (cb) cb();
                     loading = false;
+                    hideLoading();
+                })
+                .catch(error => {
+                    console.error('加载视频失败:', error);
+                    loading = false;
+                    hideLoading();
                 });
         }
 
         function toggleLike(videoId) {
             const likeButton = document.querySelector('.like-button');
-            likeButton.classList.toggle('active');
-            // 这里可以添加点赞API调用
             fetch(`/api/videos/${videoId}/like`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 }
+            })
+            .then(res => res.json())
+            .then(data => {
+                likeButton.classList.toggle('active');
+            })
+            .catch(error => {
+                console.error('点赞失败:', error);
             });
         }
 
@@ -58,6 +81,12 @@
             if (idx < 0 || idx >= videos.length) return;
             current = idx;
             const v = videos[idx];
+            
+            // 停止当前视频播放
+            if (currentVideo) {
+                currentVideo.pause();
+            }
+
             document.getElementById('video-list').innerHTML = `
                 <div class="video-container">
                     <div class="title">${v.title}</div>
@@ -79,6 +108,9 @@
                     </div>
                 </div>
             `;
+
+            // 保存当前视频元素引用
+            currentVideo = document.querySelector('video');
         }
 
         // 触摸事件处理
@@ -97,8 +129,9 @@
             // 判断是垂直滑动还是水平滑动
             if (Math.abs(deltaY) > Math.abs(deltaX)) {
                 isScrolling = true;
+                e.preventDefault(); // 防止页面滚动
             }
-        });
+        }, { passive: false });
 
         document.addEventListener('touchend', e => {
             if (isScrolling) return;

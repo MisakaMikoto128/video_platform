@@ -100,7 +100,7 @@ def watch_video(video_id):
                          related_videos=related_videos,
                          is_liked=is_liked)
 
-@video_bp.route('/like/<int:video_id>', methods=['POST'])
+@video_bp.route('/api/videos/<int:video_id>/like', methods=['POST'])
 @login_required
 def like_video(video_id):
     video = Video.query.get_or_404(video_id)
