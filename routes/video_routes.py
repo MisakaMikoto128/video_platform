@@ -8,6 +8,8 @@ from datetime import datetime
 from moviepy.editor import VideoFileClip
 from PIL import Image
 import io
+import hashlib
+import uuid
 
 video_bp = Blueprint('video', __name__)
 
@@ -44,20 +46,46 @@ def upload_video():
             return render_template('video/upload.html', error='没有选择文件')
         if not allowed_file(file.filename):
             return render_template('video/upload.html', error='不支持的文件格式')
+
         try:
+            # 计算文件哈希值
+            # 注意：这里需要先读取文件内容来计算哈希，然后再将文件指针重置回开头以便保存
+            file_content = file.read()
+            file_hash = hashlib.sha256(file_content).hexdigest()
+            file.seek(0) # 将文件指针重置回文件开头
+
+            # 检查数据库中是否已存在相同哈希值的视频
+            existing_video = Video.query.filter_by(file_hash=file_hash).first()
+
+            if existing_video:
+                # 如果视频已存在，返回提示信息并跳过保存
+                return render_template('video/upload.html', message='视频已存在，跳过上传')
+
+            # 如果视频不存在，继续正常上传流程
             filename = secure_filename(file.filename)
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            video_filename = f"{timestamp}_{filename}"
+            # 使用UUID生成唯一文件名，避免冲突
+            file_uuid = uuid.uuid4().hex
+            file_extension = os.path.splitext(filename)[1]
+            video_filename = f"{file_uuid}{file_extension}"
+            # timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            # video_filename = f"{timestamp}_{filename}" # 替换为UUID命名
             video_path = os.path.join(current_app.config['UPLOAD_FOLDER'], video_filename)
             file.save(video_path)
-            thumbnail_filename = f"{timestamp}_thumb.jpg"
+            
+            # 缩略图也使用UUID命名
+            thumbnail_filename = f"{file_uuid}_thumb.jpg"
+            # thumbnail_filename = f"{timestamp}_thumb.jpg" # 替换为UUID命名
             thumbnail_path = os.path.join(current_app.config['THUMBNAIL_FOLDER'], thumbnail_filename)
+
             if not generate_thumbnail(video_path, thumbnail_path):
-                os.remove(video_path)
+                os.remove(video_path) # 生成缩略图失败则删除已保存的视频文件
                 return render_template('video/upload.html', error='生成缩略图失败')
+            
+            # 获取视频时长
             clip = VideoFileClip(video_path)
-            duration = str(int(clip.duration))
+            duration = int(clip.duration) # moviepy duration是float，转换为int或保持float取决于模型定义
             clip.close()
+
             video = Video(
                 title=request.form.get('title'),
                 description=request.form.get('description'),
@@ -65,7 +93,8 @@ def upload_video():
                 thumbnail_path=thumbnail_filename,
                 duration=duration,
                 user_id=current_user.id,
-                tags=request.form.get('tags', '')
+                tags=request.form.get('tags', ''),
+                file_hash=file_hash # 保存文件哈希值
             )
             db.session.add(video)
             db.session.commit()

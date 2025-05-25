@@ -11,6 +11,7 @@ class Video(db.Model):
     file_path = db.Column(db.String(500), nullable=False)
     thumbnail_path = db.Column(db.String(500))
     duration = db.Column(db.Integer)  # 视频时长（秒）
+    file_hash = db.Column(db.String(64), unique=True, nullable=True)  # 添加文件哈希字段，使用SHA256，长度64
     views = db.Column(db.Integer, default=0)
     likes = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

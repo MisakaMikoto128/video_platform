@@ -12,6 +12,7 @@ from moviepy.editor import VideoFileClip
 from PIL import Image
 import numpy as np
 import uuid
+import hashlib
 
 video_upload_bp = Blueprint('video_upload', __name__)
 
@@ -44,6 +45,23 @@ def batch_import():
             original_filename = file.filename
             if original_filename.endswith('.mp4'):
                 try:
+                    # 计算文件哈希值
+                    file_content = file.read()
+                    file_hash = hashlib.sha256(file_content).hexdigest()
+                    # 将文件指针重置回开头，以便后续保存
+                    file.seek(0)
+
+                    # 检查数据库中是否已存在相同哈希值的视频
+                    existing_video = Video.query.filter_by(file_hash=file_hash).first()
+
+                    if existing_video:
+                        results.append({
+                            'filename': original_filename,
+                            'success': True,
+                            'message': '视频已存在，跳过上传'
+                        })
+                        continue # 跳过当前文件，处理下一个
+
                     pattern = r'(\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2})-视频-(.+?)-(.+?)\.mp4'
                     match = re.search(pattern, original_filename)
                     
@@ -81,6 +99,11 @@ def batch_import():
                                 'success': False,
                                 'error': f'处理视频失败: {str(e)}'
                             })
+                            # 如果处理视频失败，删除已保存的文件
+                            if os.path.exists(video_file_path):
+                                os.remove(video_file_path)
+                            if os.path.exists(thumbnail_file_path):
+                                os.remove(thumbnail_file_path)
                             continue
 
                         video = Video(
@@ -90,7 +113,8 @@ def batch_import():
                             thumbnail_path=thumbnail_name,
                             created_at=upload_time,
                             user_id=current_user.id,
-                            duration=duration
+                            duration=duration,
+                            file_hash=file_hash # 保存文件哈希值
                         )
                         db.session.add(video)
                         results.append({
