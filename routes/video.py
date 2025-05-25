@@ -70,7 +70,8 @@ def batch_import():
                             
                             # 获取视频第一帧作为缩略图
                             frame = video_clip.get_frame(1)  # 获取1秒处的帧
-                            frame_image = Image.fromarray(np.uint8(frame * 255))
+                            # 确保数据类型和范围正确，moviepy通常返回uint8类型，范围0-255
+                            frame_image = Image.fromarray(frame.astype('uint8'), 'RGB')
                             frame_image.save(thumbnail_file_path)
                             
                             video_clip.close()
