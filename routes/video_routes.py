@@ -125,9 +125,17 @@ def like_video(video_id):
         'is_liked': is_liked
     })
 
+@video_bp.before_request
+def require_login_for_api():
+    if request.path.startswith('/api/') and request.method == 'POST' and not current_user.is_authenticated:
+        # For API POST requests under /api/, return JSON error if not authenticated
+        return jsonify({'error': '用户未登录，请先登录'}), 401
+
 @video_bp.route('/comment/<int:video_id>', methods=['POST'])
-@login_required
 def add_comment(video_id):
+    # The login check is now handled by the before_request
+    if not current_user.is_authenticated:
+         return jsonify({'error': '用户未登录，请先登录'}), 401 # This check is redundant due to before_request but kept for clarity/safety
     video = Video.query.get_or_404(video_id)
     content = request.json.get('content')
     
