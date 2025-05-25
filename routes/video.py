@@ -29,6 +29,7 @@ def batch_import():
                     # 解析文件名
                     filename = file.filename
                     # 使用正则表达式匹配文件名格式
+                    # 匹配格式：YYYY-MM-DD HH.MM.SS-视频-作者-标题.mp4
                     pattern = r'(\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2})-视频-(.+?)-(.+?)\.mp4'
                     match = re.match(pattern, filename)
                     
@@ -47,7 +48,7 @@ def batch_import():
                             title=title,
                             description=f"作者: {author}",
                             file_path=filename,
-                            upload_time=upload_time,
+                            created_at=upload_time,
                             user_id=current_user.id
                         )
                         db.session.add(video)
@@ -56,11 +57,47 @@ def batch_import():
                             'success': True
                         })
                     else:
-                        results.append({
-                            'filename': filename,
-                            'success': False,
-                            'error': '文件名格式不正确'
-                        })
+                        # 如果文件名不匹配标准格式，尝试从完整路径中提取
+                        path_parts = filename.split('/')
+                        if len(path_parts) > 1:
+                            actual_filename = path_parts[-1]  # 获取实际文件名
+                            pattern = r'(\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2})-视频-(.+?)-(.+?)\.mp4'
+                            match = re.match(pattern, actual_filename)
+                            
+                            if match:
+                                upload_time, author, title = match.groups()
+                                upload_time = datetime.strptime(upload_time, '%Y-%m-%d %H.%M.%S')
+                                
+                                # 保存文件
+                                filename = secure_filename(actual_filename)
+                                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                                file.save(file_path)
+                                
+                                # 创建视频记录
+                                video = Video(
+                                    title=title,
+                                    description=f"作者: {author}",
+                                    file_path=filename,
+                                    created_at=upload_time,
+                                    user_id=current_user.id
+                                )
+                                db.session.add(video)
+                                results.append({
+                                    'filename': filename,
+                                    'success': True
+                                })
+                            else:
+                                results.append({
+                                    'filename': filename,
+                                    'success': False,
+                                    'error': '文件名格式不正确'
+                                })
+                        else:
+                            results.append({
+                                'filename': filename,
+                                'success': False,
+                                'error': '文件名格式不正确'
+                            })
                 except Exception as e:
                     results.append({
                         'filename': file.filename,
