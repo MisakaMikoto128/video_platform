@@ -352,12 +352,36 @@
             z-index: 1001; /* 确保在弹窗之上 */
         }
 
+        /* 添加到底提示样式 */
+        .end-tip {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
     <div id="video-list"></div>
     <div id="loading" class="loading" style="display: none;">加载中...</div>
+    <div id="end-tip" class="end-tip">已经到底啦 ~</div>
 
     <!-- 评论弹窗 -->
     <div id="comment-modal" class="comment-modal">
@@ -423,6 +447,14 @@
             loadingElement.style.display = 'none';
         }
 
+        function showEndTip() {
+            const endTip = document.getElementById('end-tip');
+            endTip.style.display = 'block';
+            setTimeout(() => {
+                endTip.style.display = 'none';
+            }, 2000);
+        }
+
         function loadVideos(cb) {
             if (loading) return;
             loading = true;
@@ -430,6 +462,11 @@
             fetch(`/api/videos?page=${page}`)
                 .then(res => {
                     if (!res.ok) {
+                        if (res.status === 404) {
+                            // 如果是404，说明没有更多视频了
+                            showEndTip();
+                            return { videos: [] };
+                        }
                         throw new Error('Network response was not ok ' + res.statusText);
                     }
                     return res.json();
@@ -441,7 +478,7 @@
                          page++; // 加载成功后才递增页码
                     } else {
                         console.log('没有更多视频了');
-                        // 可以显示一个提示，例如"没有更多视频"
+                        showEndTip();
                     }
                     loading = false;
                     hideLoading();
@@ -450,7 +487,7 @@
                     console.error('加载视频失败:', error);
                     loading = false;
                     hideLoading();
-                    // 显示错误提示
+                    showEndTip();
                 });
         }
 
