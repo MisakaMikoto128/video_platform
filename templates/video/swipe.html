@@ -256,11 +256,11 @@
             z-index: 1000;
             transform: translateY(100%);
             transition: transform 0.3s ease-in-out;
-            border-top-left-radius: 10px;
-            border-top-right-radius: 10px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
             padding: 20px;
             box-sizing: border-box;
-            text-align: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .share-modal.visible {
@@ -268,19 +268,79 @@
         }
 
         .share-modal h3 {
-            margin-top: 0;
+            margin: 0 0 20px 0;
+            text-align: center;
+            font-size: 18px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .share-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
             margin-bottom: 20px;
         }
 
-        .share-options button {
-            padding: 10px 20px;
-            margin: 0 10px;
-            background-color: #eee;
-            border: none;
-            border-radius: 5px;
+        .share-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            border-radius: 12px;
+            background-color: #f8f8f8;
             cursor: pointer;
+            transition: all 0.2s ease;
         }
 
+        .share-option:hover {
+            background-color: #f0f0f0;
+            transform: translateY(-2px);
+        }
+
+        .share-option i {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .share-option span {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .share-modal .cancel-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            background-color: #f0f0f0;
+            color: #666;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .share-modal .cancel-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        @media (min-width: 768px) {
+            .share-modal {
+                max-width: 500px;
+                left: 50%;
+                transform: translate(-50%, 100%);
+                border-radius: 20px;
+            }
+
+            .share-modal.visible {
+                transform: translate(-50%, 0);
+            }
+
+            .share-options {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
 
         .loading {
             position: fixed;
@@ -318,10 +378,20 @@
     <div id="share-modal" class="share-modal">
         <h3>分享视频</h3>
         <div class="share-options">
-            <button onclick="copyVideoLink()">复制链接</button>
-            <button onclick="downloadVideo()">下载视频</button>
+            <div class="share-option" onclick="copyVideoLink()">
+                <i class="fas fa-link"></i>
+                <span>复制链接</span>
+            </div>
+            <div class="share-option" onclick="downloadVideo()">
+                <i class="fas fa-download"></i>
+                <span>下载视频</span>
+            </div>
+            <div class="share-option" onclick="shareToWeChat()">
+                <i class="fab fa-weixin"></i>
+                <span>分享到微信</span>
+            </div>
         </div>
-         <button style="margin-top: 20px; background-color: #ccc;" onclick="closeShareModal()">取消</button>
+        <button class="cancel-btn" onclick="closeShareModal()">取消</button>
     </div>
 
 
@@ -649,6 +719,14 @@
              closeShareModal();
          }
 
+         // 分享到微信
+         function shareToWeChat() {
+             const videoLink = shareModal.dataset.videoLink;
+             // 这里可以添加微信分享的具体实现
+             // 例如使用微信 JSSDK 或生成二维码
+             alert('微信分享功能开发中...');
+             closeShareModal();
+         }
 
         // 触摸事件处理 (优化)
         document.addEventListener('touchstart', e => {
