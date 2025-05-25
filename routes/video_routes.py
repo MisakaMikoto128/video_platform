@@ -191,7 +191,9 @@ def api_videos():
         'title': v.title,
         'file_path': url_for('video.get_video', video_id=v.id),
         'thumbnail': url_for('video.get_thumbnail', video_id=v.id),
-        'description': v.description or ''
+        'description': v.description or '',
+        'likes': v.likes or 0,
+        'comment_count': VideoComment.query.filter_by(video_id=v.id).count()
     } for v in videos.items]
     return jsonify({'videos': data, 'has_next': videos.has_next})
 

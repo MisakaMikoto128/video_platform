@@ -385,30 +385,37 @@
         }
 
         function toggleLike(videoId, buttonElement) {
-             fetch(`/api/videos/${videoId}/like`, {
-                 method: 'POST',
-                 headers: {
-                     'Content-Type': 'application/json'
-                 }
-             })
-             .then(res => res.json())
-             .then(data => {
-                 if (data.is_liked) {
-                     buttonElement.classList.add('active');
-                 } else {
-                     buttonElement.classList.remove('active');
-                 }
-                 // 更新点赞数量显示
-                 const likeCountSpan = buttonElement.querySelector('span');
-                 if (likeCountSpan) {
-                     likeCountSpan.textContent = data.likes;
-                 }
-             })
-             .catch(error => {
-                 console.error('点赞失败:', error);
-                 // 显示错误提示
-             });
-         }
+            fetch(`/api/videos/${videoId}/like`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'  // 添加这个头部
+                },
+                credentials: 'same-origin'  // 添加这个选项
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (data.is_liked) {
+                    buttonElement.classList.add('active');
+                } else {
+                    buttonElement.classList.remove('active');
+                }
+                // 更新点赞数量显示
+                const likeCountSpan = buttonElement.querySelector('span');
+                if (likeCountSpan) {
+                    likeCountSpan.textContent = data.likes;
+                }
+            })
+            .catch(error => {
+                console.error('点赞失败:', error);
+                alert('点赞失败，请稍后重试');
+            });
+        }
 
         function showVideo(idx) {
             if (idx < 0 || idx >= videos.length) return;
@@ -427,7 +434,6 @@
 
             const videoContainer = document.createElement('div');
             videoContainer.classList.add('video-container');
-            // 添加一个属性来标识当前视频，方便移除旧的
             videoContainer.dataset.videoId = v.id;
 
             videoContainer.innerHTML = `
@@ -442,11 +448,11 @@
                 <div class="action-buttons">
                     <button class="action-button like-button" data-video-id="${v.id}">
                         <i class="fas fa-heart"></i>
-                        <span>${v.likes || 0}</span> <!-- 显示点赞数 -->
+                        <span>${v.likes || 0}</span>
                     </button>
                     <button class="action-button comment-button" data-video-id="${v.id}">
                         <i class="fas fa-comment"></i>
-                        <span>${v.comment_count || 0}</span> <!-- 如果有评论数则显示 -->
+                        <span>${v.comment_count || 0}</span>
                     </button>
                     <button class="action-button share-button" data-video-id="${v.id}">
                         <i class="fas fa-share"></i>
@@ -457,13 +463,12 @@
 
             videoListElement.appendChild(videoContainer);
 
-            // 获取新创建的视频元素和点赞按钮
+            // 获取新创建的视频元素和按钮
             currentVideoElement = videoContainer.querySelector('video');
             const likeButton = videoContainer.querySelector('.like-button');
             const commentButton = videoContainer.querySelector('.comment-button');
             const shareButton = videoContainer.querySelector('.share-button');
             const playPauseOverlay = videoContainer.querySelector('.play-pause-overlay');
-
 
             // 添加点赞事件监听
             likeButton.addEventListener('click', () => toggleLike(v.id, likeButton));
@@ -474,11 +479,8 @@
             // 添加分享事件监听
             shareButton.addEventListener('click', () => openShareModal(v.id, v.file_path));
 
-
-            // 检查点赞状态（假设API返回的数据中包含用户是否已点赞的信息，或者单独调用API检查）
-            // 为了简化，这里假设需要调用API检查
-             checkLikeStatus(v.id, likeButton);
-
+            // 检查点赞状态
+            checkLikeStatus(v.id, likeButton);
 
             // 视频点击播放/暂停
             currentVideoElement.addEventListener('click', () => {
@@ -493,20 +495,26 @@
                 }
             });
 
-             // 视频播放和暂停事件，用于同步暂停图标
-             currentVideoElement.addEventListener('play', () => {
-                 playPauseOverlay.classList.remove('visible');
-                 isVideoPaused = false;
-             });
+            // 视频播放和暂停事件
+            currentVideoElement.addEventListener('play', () => {
+                playPauseOverlay.classList.remove('visible');
+                isVideoPaused = false;
+            });
 
-             currentVideoElement.addEventListener('pause', () => {
-                 playPauseOverlay.classList.add('visible');
-                 isVideoPaused = true;
-             });
+            currentVideoElement.addEventListener('pause', () => {
+                playPauseOverlay.classList.add('visible');
+                isVideoPaused = true;
+            });
 
-             // 自动播放当前视频（需要用户手势后才能自动播放）
-             // 在移动端，通常需要在touch事件后触发play()
-            // currentVideoElement.play().catch(error => console.log('Autoplay prevented:', error)); // 尝试自动播放
+            // 尝试自动播放
+            const playPromise = currentVideoElement.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log('自动播放被阻止:', error);
+                    // 显示播放按钮
+                    playPauseOverlay.classList.add('visible');
+                });
+            }
         }
 
         // 检查用户是否已点赞某个视频
