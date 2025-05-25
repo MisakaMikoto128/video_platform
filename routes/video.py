@@ -8,7 +8,10 @@ from models.video import Video, VideoComment, VideoLike
 from models.db import db
 import os
 from datetime import datetime
-import subprocess
+from moviepy.editor import VideoFileClip
+from PIL import Image
+import numpy as np
+import uuid
 
 video_upload_bp = Blueprint('video_upload', __name__)
 
@@ -41,41 +44,41 @@ def batch_import():
             original_filename = file.filename
             if original_filename.endswith('.mp4'):
                 try:
-                    filename_base = original_filename
-                    path_parts = original_filename.split('/')
-                    if len(path_parts) > 1:
-                        filename_base = path_parts[-1]
-
                     pattern = r'(\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2})-视频-(.+?)-(.+?)\.mp4'
-                    match = re.match(pattern, filename_base)
+                    match = re.search(pattern, original_filename)
                     
                     if match:
                         upload_time_str, author, title = match.groups()
                         upload_time = datetime.strptime(upload_time_str, '%Y-%m-%d %H.%M.%S')
                         
-                        secured_filename = secure_filename(filename_base)
+                        # 生成唯一的UUID作为文件名
+                        file_uuid = uuid.uuid4().hex
+                        file_extension = os.path.splitext(original_filename)[1]
+                        secured_filename = f"{file_uuid}{file_extension}"
+                        
                         video_file_path = os.path.join(upload_folder, secured_filename)
                         file.save(video_file_path)
 
-                        thumbnail_name = os.path.splitext(secured_filename)[0] + '.jpg'
+                        # 缩略图也使用UUID命名
+                        thumbnail_name = f"{file_uuid}.jpg"
                         thumbnail_file_path = os.path.join(thumbnail_folder, thumbnail_name)
 
                         try:
-                            # 使用ffmpeg生成缩略图
-                            ffmpeg_cmd = [
-                                'ffmpeg',
-                                '-i', video_file_path,
-                                '-ss', '00:00:01',  # 从1秒处开始
-                                '-vframes', '1',    # 只取一帧
-                                '-q:v', '2',        # 高质量
-                                thumbnail_file_path
-                            ]
-                            subprocess.run(ffmpeg_cmd, check=True, capture_output=True)
+                            # 使用moviepy获取视频时长和生成缩略图
+                            video_clip = VideoFileClip(video_file_path)
+                            duration = video_clip.duration
+                            
+                            # 获取视频第一帧作为缩略图
+                            frame = video_clip.get_frame(1)  # 获取1秒处的帧
+                            frame_image = Image.fromarray(np.uint8(frame * 255))
+                            frame_image.save(thumbnail_file_path)
+                            
+                            video_clip.close()
                         except Exception as e:
                             results.append({
                                 'filename': original_filename,
                                 'success': False,
-                                'error': f'生成缩略图失败: {str(e)}'
+                                'error': f'处理视频失败: {str(e)}'
                             })
                             continue
 
@@ -85,7 +88,8 @@ def batch_import():
                             file_path=secured_filename,
                             thumbnail_path=thumbnail_name,
                             created_at=upload_time,
-                            user_id=current_user.id
+                            user_id=current_user.id,
+                            duration=duration
                         )
                         db.session.add(video)
                         results.append({
