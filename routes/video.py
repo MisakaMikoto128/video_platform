@@ -61,12 +61,21 @@ def batch_import():
                         thumbnail_file_path = os.path.join(thumbnail_folder, thumbnail_name)
 
                         try:
-                            pass
+                            # 使用ffmpeg生成缩略图
+                            ffmpeg_cmd = [
+                                'ffmpeg',
+                                '-i', video_file_path,
+                                '-ss', '00:00:01',  # 从1秒处开始
+                                '-vframes', '1',    # 只取一帧
+                                '-q:v', '2',        # 高质量
+                                thumbnail_file_path
+                            ]
+                            subprocess.run(ffmpeg_cmd, check=True, capture_output=True)
                         except Exception as e:
                             results.append({
                                 'filename': original_filename,
                                 'success': False,
-                                'error': f'处理视频文件失败: {str(e)}'
+                                'error': f'生成缩略图失败: {str(e)}'
                             })
                             continue
 
