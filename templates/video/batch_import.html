@@ -1,1 +1,66 @@
- 
+{% extends "base.html" %}
+
+{% block title %}批量导入视频 - 视频平台{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">批量导入视频</h1>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <form action="{{ url_for('video_upload.batch_import') }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="video_folder">
+                        选择视频文件夹
+                    </label>
+                    <input type="file" 
+                           name="video_folder" 
+                           id="video_folder" 
+                           webkitdirectory 
+                           directory 
+                           multiple
+                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <p class="text-sm text-gray-500 mt-2">
+                        请选择包含视频文件的文件夹，支持的文件格式：mp4
+                    </p>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <button type="submit" 
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        开始导入
+                    </button>
+                    <a href="{{ url_for('video.index') }}" 
+                       class="text-blue-500 hover:text-blue-700">
+                        返回视频列表
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        {% if results %}
+        <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">导入结果</h2>
+            <div class="space-y-4">
+                {% for result in results %}
+                <div class="border-b pb-4">
+                    <p class="font-medium">{{ result.filename }}</p>
+                    <p class="text-sm text-gray-600">
+                        状态: 
+                        {% if result.success %}
+                        <span class="text-green-600">成功</span>
+                        {% else %}
+                        <span class="text-red-600">失败</span>
+                        {% endif %}
+                    </p>
+                    {% if result.error %}
+                    <p class="text-sm text-red-600">{{ result.error }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
