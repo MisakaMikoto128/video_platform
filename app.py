@@ -36,8 +36,10 @@ def create_app(config_name='default'):
     # 注册蓝图
     from routes.video_routes import video_bp
     from routes.auth import auth_bp
-    app.register_blueprint(video_bp)
+    from routes.video import video_upload_bp
     app.register_blueprint(auth_bp)
+    app.register_blueprint(video_bp)
+    app.register_blueprint(video_upload_bp)
     
     # 创建应用上下文
     with app.app_context():

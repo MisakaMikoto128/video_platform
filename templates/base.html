@@ -43,6 +43,12 @@
                                 </a>
                             </div>
                         </div>
+                        <a href="{{ url_for('video_upload.batch_import') }}" 
+                           class="border-transparent text-gray-500 hover:border-blue-500 hover:text-blue-600 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            <i class="fas fa-upload mr-1"></i>批量导入
+                        </a>
+                        <!-- {% if current_user.is_authenticated and current_user.is_admin %} -->
+                        <!-- {% endif %} -->
                     {% else %}
                         <div class="flex items-center space-x-4">
                             <a href="{{ url_for('auth.login') }}" 
