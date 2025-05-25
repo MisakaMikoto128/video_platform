@@ -8,7 +8,7 @@ from models.video import Video, VideoComment, VideoLike
 from models.db import db
 import os
 from datetime import datetime
-
+import subprocess
 
 video_upload_bp = Blueprint('video_upload', __name__)
 
@@ -23,84 +23,75 @@ def batch_import():
         files = request.files.getlist('video_folder')
         results = []
         
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        thumbnail_folder = current_app.config.get('THUMBNAIL_FOLDER')
+
+        if not upload_folder or not thumbnail_folder:
+            results.append({
+                'filename': '配置错误',
+                'success': False,
+                'error': 'UPLOAD_FOLDER 或 THUMBNAIL_FOLDER 未配置'
+            })
+            return render_template('video/batch_import.html', results=results)
+
+        os.makedirs(upload_folder, exist_ok=True)
+        os.makedirs(thumbnail_folder, exist_ok=True)
+
         for file in files:
-            if file.filename.endswith('.mp4'):
+            original_filename = file.filename
+            if original_filename.endswith('.mp4'):
                 try:
-                    # 解析文件名
-                    filename = file.filename
-                    # 使用正则表达式匹配文件名格式
-                    # 匹配格式：YYYY-MM-DD HH.MM.SS-视频-作者-标题.mp4
+                    filename_base = original_filename
+                    path_parts = original_filename.split('/')
+                    if len(path_parts) > 1:
+                        filename_base = path_parts[-1]
+
                     pattern = r'(\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2})-视频-(.+?)-(.+?)\.mp4'
-                    match = re.match(pattern, filename)
+                    match = re.match(pattern, filename_base)
                     
                     if match:
-                        upload_time, author, title = match.groups()
-                        # 转换上传时间格式
-                        upload_time = datetime.strptime(upload_time, '%Y-%m-%d %H.%M.%S')
+                        upload_time_str, author, title = match.groups()
+                        upload_time = datetime.strptime(upload_time_str, '%Y-%m-%d %H.%M.%S')
                         
-                        # 保存文件
-                        filename = secure_filename(filename)
-                        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                        file.save(file_path)
-                        
-                        # 创建视频记录
+                        secured_filename = secure_filename(filename_base)
+                        video_file_path = os.path.join(upload_folder, secured_filename)
+                        file.save(video_file_path)
+
+                        thumbnail_name = os.path.splitext(secured_filename)[0] + '.jpg'
+                        thumbnail_file_path = os.path.join(thumbnail_folder, thumbnail_name)
+
+                        try:
+                            pass
+                        except Exception as e:
+                            results.append({
+                                'filename': original_filename,
+                                'success': False,
+                                'error': f'处理视频文件失败: {str(e)}'
+                            })
+                            continue
+
                         video = Video(
                             title=title,
                             description=f"作者: {author}",
-                            file_path=filename,
+                            file_path=secured_filename,
+                            thumbnail_path=thumbnail_name,
                             created_at=upload_time,
                             user_id=current_user.id
                         )
                         db.session.add(video)
                         results.append({
-                            'filename': filename,
+                            'filename': original_filename,
                             'success': True
                         })
                     else:
-                        # 如果文件名不匹配标准格式，尝试从完整路径中提取
-                        path_parts = filename.split('/')
-                        if len(path_parts) > 1:
-                            actual_filename = path_parts[-1]  # 获取实际文件名
-                            pattern = r'(\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2})-视频-(.+?)-(.+?)\.mp4'
-                            match = re.match(pattern, actual_filename)
-                            
-                            if match:
-                                upload_time, author, title = match.groups()
-                                upload_time = datetime.strptime(upload_time, '%Y-%m-%d %H.%M.%S')
-                                
-                                # 保存文件
-                                filename = secure_filename(actual_filename)
-                                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                                file.save(file_path)
-                                
-                                # 创建视频记录
-                                video = Video(
-                                    title=title,
-                                    description=f"作者: {author}",
-                                    file_path=filename,
-                                    created_at=upload_time,
-                                    user_id=current_user.id
-                                )
-                                db.session.add(video)
-                                results.append({
-                                    'filename': filename,
-                                    'success': True
-                                })
-                            else:
-                                results.append({
-                                    'filename': filename,
-                                    'success': False,
-                                    'error': '文件名格式不正确'
-                                })
-                        else:
-                            results.append({
-                                'filename': filename,
-                                'success': False,
-                                'error': '文件名格式不正确'
-                            })
+                        results.append({
+                            'filename': original_filename,
+                            'success': False,
+                            'error': '文件名格式不正确'
+                        })
                 except Exception as e:
                     results.append({
-                        'filename': file.filename,
+                        'filename': original_filename,
                         'success': False,
                         'error': str(e)
                     })
@@ -110,12 +101,8 @@ def batch_import():
             flash('批量导入完成', 'success')
         except Exception as e:
             db.session.rollback()
-            flash('导入过程中发生错误', 'error')
-            results.append({
-                'filename': '数据库操作',
-                'success': False,
-                'error': str(e)
-            })
+            flash(f'导入过程中发生数据库错误: {str(e)}', 'error')
+            print(f"Database commit failed: {e}")
         
         return render_template('video/batch_import.html', results=results)
     
