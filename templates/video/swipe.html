@@ -791,6 +791,44 @@
         //      }
         // });
 
+        // 鼠标滚轮切换
+        document.addEventListener('wheel', e => {
+             // 如果评论或分享弹窗打开，阻止滚轮事件影响背景
+             if (commentModal.classList.contains('visible') || shareModal.classList.contains('visible')) {
+                 return;
+             }
+
+             // 阻止默认的页面滚动
+             e.preventDefault();
+
+             const container = videoListElement.querySelector('.video-container');
+
+             if (e.deltaY > 0) {
+                 // 滚轮向下，切换到下一个视频
+                 if (current < videos.length - 1) {
+                     if (container) container.style.transform = 'translateY(-100vh)';
+                     setTimeout(() => showVideo(current + 1), 400);
+                 } else {
+                     // 如果是最后一个视频，尝试加载更多
+                      if (container) container.style.transform = 'translateY(-100vh)';
+                     loadVideos(() => {
+                          if (videos.length > current + 1) {
+                                setTimeout(() => showVideo(current + 1), 400);
+                          } else {
+                               // 没加载到新视频，恢复容器位置
+                                if (container) container.style.transform = 'translateY(0)';
+                               console.log('没有更多视频了');
+                          }
+                     });
+                 }
+             } else if (e.deltaY < 0) {
+                 // 滚轮向上，切换到上一个视频
+                 if (current > 0) {
+                     if (container) container.style.transform = 'translateY(100vh)';
+                     setTimeout(() => showVideo(current - 1), 400);
+                 }
+             }
+        }, { passive: false }); // 使用 passive: false 允许 preventDefault
 
     </script>
 </body>
