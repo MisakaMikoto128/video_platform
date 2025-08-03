@@ -49,4 +49,4 @@ def create_app(config_name='default'):
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(host='0.0.0.0', port=5002, debug=True)  # 使用不同的端口 
+    app.run(host='0.0.0.0', port=5005, debug=True)  # 使用不同的端口 
